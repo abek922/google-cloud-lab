@@ -56,17 +56,36 @@ claude
 ## B. Claude Code on the web（claude.ai/code）
 
 claude.ai の「Code」から GitHub リポジトリを選んで起動する方式。コード編集や docs の更新はこれで十分。
-gcloud を実行したい場合は次の2点が必要。
+gcloud も動かすなら、環境（Environment）を1つ作る。公式ドキュメント：https://code.claude.com/docs/ja/cloud-environments
 
-### 1. 環境のネットワーク設定
-環境（Environment）の設定で、ネットワークアクセスを「制限なし」にするか、
-許可ドメインに `*.googleapis.com` を追加する。既定では GC の API に接続できない。
+### 環境の作り方
+claude.ai/code のメッセージ欄の上にある雲アイコン → 「クラウド環境を追加」。設定項目は4つ。
 
-### 2. GC の認証を環境変数で渡す
-Cloud Shell と違いブラウザログインができないので、サービスアカウント鍵を使う。
+| 項目 | 推奨値 | 理由 |
+| --- | --- | --- |
+| Name | `gc-lab` | |
+| Network access | **Custom**、「Also include default list」にチェック、追加ドメインに `dl.google.com` と `packages.cloud.google.com` | Trusted（既定）には `*.googleapis.com` が含まれるので API 呼び出しは通る。gcloud CLI のインストール元だけ追加が要る |
+| Environment variables | `GCP_PROJECT_ID=abek-gc-lab`<br>`GCP_REGION=asia-northeast1`<br>`GCP_SA_KEY_B64=<鍵の base64>` | 環境変数は環境を使える人全員に見える。個人環境なら自分だけだが、鍵は学習用・最小権限に限定する |
+| Setup script | 下記 | gcloud / gh は VM に入っていないので入れる。初回だけ実行され、スナップショットがキャッシュされる |
 
+Setup script：
 ```bash
-# Cloud Shell で1回だけ実行：学習用の限定的なサービスアカウントを作る
+#!/bin/bash
+set -e
+# gcloud CLI
+curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt >/dev/null
+ln -sf /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud
+ln -sf /opt/google-cloud-sdk/bin/bq /usr/local/bin/bq
+# gh CLI（PR 操作などで使う。無くても GitHub の組み込みツールで足りる）
+apt-get update -qq && apt-get install -y -qq gh || true
+# Python ライブラリ
+pip install -q google-cloud-bigquery[pandas] flask gunicorn || true
+```
+5分以内に終わること、終了コードが0であることが条件。
+
+### サービスアカウント鍵の作り方（Cloud Shell で1回）
+ブラウザログインができないので、学習用の限定的なサービスアカウント鍵を使う。
+```bash
 gcloud iam service-accounts create claude-code-lab --project abek-gc-lab
 for role in roles/run.admin roles/bigquery.user roles/cloudscheduler.admin \
             roles/secretmanager.admin roles/artifactregistry.admin \
@@ -77,16 +96,12 @@ for role in roles/run.admin roles/bigquery.user roles/cloudscheduler.admin \
 done
 gcloud iam service-accounts keys create key.json \
   --iam-account claude-code-lab@abek-gc-lab.iam.gserviceaccount.com
-base64 -w0 key.json   # この文字列を環境変数に入れる。key.json は使い終わったら削除
+base64 -w0 key.json   # 出力を GCP_SA_KEY_B64 に貼る
+rm key.json
 ```
 
-環境設定の環境変数に：
-```
-GCP_SA_KEY_B64=<上の base64 文字列>
-GCP_PROJECT_ID=abek-gc-lab
-```
-
-セッション開始時に Claude Code に実行させるコマンド（CLAUDE.md にも記載）：
+### セッション開始時
+CLAUDE.md に書いてあるので Claude Code が自分で実行する：
 ```bash
 echo "$GCP_SA_KEY_B64" | base64 -d > /tmp/sa.json
 gcloud auth activate-service-account --key-file /tmp/sa.json
@@ -98,6 +113,8 @@ export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
 - 鍵は **abek-gc-lab 専用・学習用** に限定。Paletto や他プロジェクトの権限は付けない
 - 鍵をリポジトリにコミットしない（`.gitignore` で `*.json` を除外済み）
 - 使わなくなったら `gcloud iam service-accounts keys delete` で失効させる
+- 鍵を環境変数に置きたくなければ、gcloud を使う課題だけ Cloud Shell（A）でやればよい。web 側は環境変数なしで docs とコード編集に使う
+- `~/.claude/` のユーザー設定・MCP はクラウドに引き継がれない。リポジトリの `.claude/settings.json` と `.mcp.json` に書く
 
 ## 共通：設定ファイルと CLAUDE.md
 
