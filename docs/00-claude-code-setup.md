@@ -165,6 +165,11 @@ Vercel の Access Token / Supabase の `service_role` キーに近いもの。
 付けていないもの：`resourcemanager.projects.getIamPolicy`（権限一覧の閲覧）や請求先の参照。
 そのため web 側の Claude Code からは「SA にどのロールが付いているか」「請求先が紐付いているか」は確認できない。必要なら Cloud Shell で見る。
 
+#### 注意
+- `roles/serviceusage.serviceUsageAdmin` は Claude Code に API 有効化（`gcloud services enable`）をさせるために付けている。API を自分で Cloud Shell から有効化するなら不要なので外してよい
+- 組織ポリシーで「サービスアカウント鍵の作成禁止」（`iam.disableServiceAccountKeyCreation`）が有効だと `keys create` が失敗する。個人の新規プロジェクトなら通常は通る
+- 使い終わったら鍵を失効させる（手順は次の「やり直すとき」と同じ `keys list` → `keys delete <ID>`）
+
 #### やり直すとき
 - SA がすでにある場合、`service-accounts create` は「already exists」で失敗するが無視してよい。後続のロール付与と鍵作成はそのまま通る
 - ロールを足すだけなら `for` ループだけ再実行。鍵は作り直さなくてよい
