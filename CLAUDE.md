@@ -37,6 +37,7 @@ GCP_REGION=asia-northeast1
 完了したら `docs/` に学んだことを追記する。
 
 ## 参考ドキュメント
+- `docs/00-claude-code-setup.md` — Claude Code の初期設定手順
 - `docs/01-cloud-functions-vs-cloud-run.md` — 関数とコンテナの違い、Dockerイメージとは
 - `docs/02-service-mapping.md` — Vercel/Supabase/GitHub/Cloudflare/AWS と GC の対応表
 - `docs/03-roles-explained.md` — ホスティング・DB・CDN など各役割の解説

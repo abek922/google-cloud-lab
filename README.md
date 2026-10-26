@@ -8,8 +8,10 @@ Vercel / Supabase / GitHub / Cloudflare 構成の経験を土台に、GC の主�
 ```
 google-cloud-lab/
 ├── CLAUDE.md                 # Claude Code への指示（最初に読まれる）
+├── .claude/settings.json     # Claude Code の許可/拒否ルール
 ├── README.md                 # このファイル
 ├── docs/
+│   ├── 00-claude-code-setup.md              # Claude Code の初期設定
 │   ├── 01-cloud-functions-vs-cloud-run.md   # 関数 vs コンテナ、Dockerイメージの基礎
 │   ├── 02-service-mapping.md                # Vercel/Supabase/GitHub/Cloudflare/AWS → GC 対応表
 │   ├── 03-roles-explained.md                # 各役割（ホスティング・DB・CDN等）の解説
