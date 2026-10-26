@@ -2,7 +2,8 @@
 
 デプロイ:
   cd apps/hello-cloud-run
-  gcloud run deploy hello-cloud-run --source . --region asia-northeast1 --allow-unauthenticated
+  gcloud run deploy hello-cloud-run --source . --region asia-northeast1 --allow-unauthenticated \
+    --set-env-vars GCP_REGION=asia-northeast1
 
 ポイント:
 - PORT 環境変数で待ち受ける（Cloud Run が渡してくる）
