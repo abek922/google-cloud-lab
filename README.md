@@ -38,12 +38,11 @@ google-cloud-lab/
 
 ## 前提セットアップ
 
+クラウドで進める。手順は `docs/00-claude-code-setup.md`（Cloud Shell 推奨、claude.ai/code 併用）。
+
 ```bash
-# gcloud CLI（未導入なら）
-brew install google-cloud-sdk      # macOS
-gcloud init                        # ログイン
+# Cloud Shell で
 gcloud config set project abek-gc-lab
-gcloud auth application-default login   # Python ライブラリ用の認証
 ```
 
 請求先アカウントの紐付けと、次のAPI有効化が必要：

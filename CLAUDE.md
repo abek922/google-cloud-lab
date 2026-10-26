@@ -32,6 +32,17 @@ GCP_PROJECT_ID=abek-gc-lab
 GCP_REGION=asia-northeast1
 ```
 
+### セッション開始時（Claude Code on the web の場合のみ）
+環境変数 `GCP_SA_KEY_B64` がある場合は、最初にこれを実行して gcloud を認証する：
+```bash
+echo "$GCP_SA_KEY_B64" | base64 -d > /tmp/sa.json
+gcloud auth activate-service-account --key-file /tmp/sa.json
+gcloud config set project "$GCP_PROJECT_ID"
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+```
+Cloud Shell で動いている場合（`gcloud auth list` に自分のアカウントがある）は不要。
+googleapis.com に接続できない場合は、環境のネットワーク設定が未許可なので利用者に伝える。
+
 ### 進め方
 `README.md` の学習ロードマップに沿って進める。各課題は `apps/` 配下にディレクトリを作り、
 完了したら `docs/` に学んだことを追記する。
