@@ -35,6 +35,8 @@ GCP_REGION=asia-northeast1
 ### セッション開始時（Claude Code on the web の場合のみ）
 環境変数 `GCP_SA_KEY_B64` がある場合は、最初にこれを実行して gcloud を認証する：
 ```bash
+# web 環境のプロキシが入れる仮トークンが SA 鍵より優先されて UNAUTHENTICATED になるため外す
+unset CLOUDSDK_AUTH_ACCESS_TOKEN
 echo "$GCP_SA_KEY_B64" | base64 -d > /tmp/sa.json
 gcloud auth activate-service-account --key-file /tmp/sa.json
 gcloud config set project "$GCP_PROJECT_ID"
