@@ -114,26 +114,72 @@ GCP_SA_KEY_B64=<サービスアカウント鍵の base64>
 
 セットアップスクリプトが失敗するとセッション自体が起動しないので、1 で確認してから鍵を足す。
 
-### サービスアカウント鍵の作り方（Cloud Shell で1回）
-ブラウザログインができないので、学習用の限定的なサービスアカウント鍵を使う。
-```bash
-gcloud iam service-accounts create claude-code-lab --project abek-gc-lab
-for role in roles/run.admin roles/bigquery.user roles/cloudscheduler.admin \
-            roles/secretmanager.admin roles/artifactregistry.admin \
-            roles/cloudbuild.builds.editor roles/iam.serviceAccountUser; do
-  gcloud projects add-iam-policy-binding abek-gc-lab \
-    --member serviceAccount:claude-code-lab@abek-gc-lab.iam.gserviceaccount.com \
-    --role $role --quiet
-done
-gcloud iam service-accounts keys create key.json \
-  --iam-account claude-code-lab@abek-gc-lab.iam.gserviceaccount.com
-base64 -w0 key.json   # 出力を GCP_SA_KEY_B64 に貼る
-rm key.json
-```
+### サービスアカウント鍵の発行と初期設定（Cloud Shell で、5分程度）
+ブラウザログインができないので、学習用の限定的なサービスアカウント（SA）鍵を使う。
+Vercel の Access Token / Supabase の `service_role` キーに近いもの。
+
+1. GC コンソール右上のターミナルアイコンで Cloud Shell を開く
+2. 以下を順に貼る（コピーして一気に貼って OK）
+   ```bash
+   gcloud config set project abek-gc-lab
+
+   # 学習用サービスアカウントを作成
+   gcloud iam service-accounts create claude-code-lab \
+     --display-name "Claude Code Lab" --project abek-gc-lab
+
+   # 課題1〜5に必要な権限だけ付与
+   for role in roles/run.admin roles/bigquery.user roles/cloudscheduler.admin \
+               roles/secretmanager.admin roles/artifactregistry.admin \
+               roles/cloudbuild.builds.editor roles/iam.serviceAccountUser \
+               roles/serviceusage.serviceUsageAdmin; do
+     gcloud projects add-iam-policy-binding abek-gc-lab \
+       --member serviceAccount:claude-code-lab@abek-gc-lab.iam.gserviceaccount.com \
+       --role $role --quiet >/dev/null
+   done
+
+   # 鍵を作って base64 で表示
+   gcloud iam service-accounts keys create key.json \
+     --iam-account claude-code-lab@abek-gc-lab.iam.gserviceaccount.com
+   base64 -w0 key.json; echo
+   rm key.json
+   ```
+3. 最後に表示される長い1行（`ewog...` で始まる）をコピー
+4. claude.ai/code の環境「Google Cloud Lab」を開き、環境変数に追記：
+   ```
+   GCP_SA_KEY_B64=<コピーした文字列>
+   ```
+5. 新しいセッションを開始して、前回の初回指示文を貼る（環境変数は次のセッションから反映）
+
+#### 付与するロールの意味
+| ロール | 用途 | 課題 |
+| --- | --- | --- |
+| `run.admin` | Cloud Run サービス / jobs の作成・公開設定 | 1, 3 |
+| `artifactregistry.admin` | イメージ置き場の作成・push | 1 |
+| `cloudbuild.builds.editor` | `--source` デプロイ時のビルド実行 | 1 |
+| `iam.serviceAccountUser` | Cloud Run を特定の SA として動かす | 1, 3 |
+| `bigquery.user` | クエリ実行・データセット作成 | 2 |
+| `cloudscheduler.admin` | 定期実行の登録 | 3 |
+| `secretmanager.admin` | API キーの保管 | 5 |
+| `serviceusage.serviceUsageAdmin` | `gcloud services enable` で API を有効化 | 全般 |
+
+付けていないもの：`resourcemanager.projects.getIamPolicy`（権限一覧の閲覧）や請求先の参照。
+そのため web 側の Claude Code からは「SA にどのロールが付いているか」「請求先が紐付いているか」は確認できない。必要なら Cloud Shell で見る。
+
+#### やり直すとき
+- SA がすでにある場合、`service-accounts create` は「already exists」で失敗するが無視してよい。後続のロール付与と鍵作成はそのまま通る
+- ロールを足すだけなら `for` ループだけ再実行。鍵は作り直さなくてよい
+- 鍵を作り直したら古い鍵は失効させる：
+  ```bash
+  gcloud iam service-accounts keys list --iam-account claude-code-lab@abek-gc-lab.iam.gserviceaccount.com
+  gcloud iam service-accounts keys delete <KEY_ID> --iam-account claude-code-lab@abek-gc-lab.iam.gserviceaccount.com
+  ```
 
 ### セッション開始時
 CLAUDE.md に書いてあるので Claude Code が自分で実行する：
 ```bash
+# web 環境のプロキシが入れる仮トークン（CLOUDSDK_AUTH_ACCESS_TOKEN）が SA 鍵より優先され、
+# UNAUTHENTICATED になるため外す
+unset CLOUDSDK_AUTH_ACCESS_TOKEN
 echo "$GCP_SA_KEY_B64" | base64 -d > /tmp/sa.json
 gcloud auth activate-service-account --key-file /tmp/sa.json
 gcloud config set project "$GCP_PROJECT_ID"
