@@ -58,30 +58,61 @@ claude
 claude.ai の「Code」から GitHub リポジトリを選んで起動する方式。コード編集や docs の更新はこれで十分。
 gcloud も動かすなら、環境（Environment）を1つ作る。公式ドキュメント：https://code.claude.com/docs/ja/cloud-environments
 
-### 環境の作り方
-claude.ai/code のメッセージ欄の上にある雲アイコン → 「クラウド環境を追加」。設定項目は4つ。
+### 環境の作り方（画面の項目順）
+claude.ai/code のメッセージ欄の上にある雲アイコン → 「クラウド環境を追加」。
+ダイアログの上部で「クラウド」タブを選ぶ。設定項目は画面の順に次の4つ。
 
-| 項目 | 推奨値 | 理由 |
-| --- | --- | --- |
-| Name | `gc-lab` | |
-| Network access | **Custom**、「Also include default list」にチェック、追加ドメインに `dl.google.com` と `packages.cloud.google.com` | Trusted（既定）には `*.googleapis.com` が含まれるので API 呼び出しは通る。gcloud CLI のインストール元だけ追加が要る |
-| Environment variables | `GCP_PROJECT_ID=abek-gc-lab`<br>`GCP_REGION=asia-northeast1`<br>`GCP_SA_KEY_B64=<鍵の base64>` | 環境変数は環境を使える人全員に見える。個人環境なら自分だけだが、鍵は学習用・最小権限に限定する |
-| Setup script | 下記 | gcloud / gh は VM に入っていないので入れる。初回だけ実行され、スナップショットがキャッシュされる |
+#### 1. 名前
+`Google Cloud Lab`
 
-Setup script：
+#### 2. ネットワークアクセス
+初期表示は「制限付き・ドメインなし・パッケージマネージャー：オン」。
+
+- 「制限付き」のまま
+- 「パッケージマネージャー」は **オン** のまま（npm / pip / apt などが通る）
+- **許可ドメインに次の2つを追加**：
+  ```
+  dl.google.com
+  packages.cloud.google.com
+  ```
+- `*.googleapis.com` は既定の許可リストに含まれているので追加不要。上の2つは gcloud CLI のダウンロード元
+
+#### 3. ネットワークシークレット
+**「なし」のまま**。
+特定ドメインへの通信に認証情報を自動で付ける仕組み（VM 内に値を置かない方式）だが、
+gcloud はサービスアカウント鍵からトークンを自分で生成するためこの方式は使えない。鍵は 4 の環境変数に入れる。
+
+#### 4. セットアップスクリプト
+以下を貼る。初回のみ実行され、結果がスナップショットとしてキャッシュされる。5分以内・終了コード0が条件。
 ```bash
 #!/bin/bash
 set -e
-# gcloud CLI
+# gcloud CLI（VM にはプリインストールされていない）
 curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/opt >/dev/null
 ln -sf /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud
 ln -sf /opt/google-cloud-sdk/bin/bq /usr/local/bin/bq
-# gh CLI（PR 操作などで使う。無くても GitHub の組み込みツールで足りる）
+# gh CLI（任意。無くても GitHub の組み込みツールで足りる）
 apt-get update -qq && apt-get install -y -qq gh || true
 # Python ライブラリ
-pip install -q google-cloud-bigquery[pandas] flask gunicorn || true
+pip install -q "google-cloud-bigquery[pandas]" flask gunicorn || true
 ```
-5分以内に終わること、終了コードが0であることが条件。
+
+#### 5. 環境変数
+`.env` 形式で1行ずつ。
+```
+GCP_PROJECT_ID=abek-gc-lab
+GCP_REGION=asia-northeast1
+GCP_SA_KEY_B64=<サービスアカウント鍵の base64>
+```
+環境変数は環境を使える人全員に見える（専用のシークレット保管はない）。個人環境なら自分だけだが、鍵は学習用・最小権限に限定する。
+鍵がまだなら上2行だけで作成し、あとから追記してよい。追記は次に開始するセッションから反映される。
+
+#### 推奨する順番
+1. 鍵なしで環境を作成 → リポジトリを選んでセッション開始 → `gcloud --version` が通るか確認（セットアップスクリプトの検証）
+2. Cloud Shell で鍵を作成（次節）→ 環境変数に追加
+3. 新しいセッションで「課題1から始めて」
+
+セットアップスクリプトが失敗するとセッション自体が起動しないので、1 で確認してから鍵を足す。
 
 ### サービスアカウント鍵の作り方（Cloud Shell で1回）
 ブラウザログインができないので、学習用の限定的なサービスアカウント鍵を使う。
